@@ -10,7 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { 
   TrendingUp, TrendingDown, Activity, DollarSign, Users, Repeat, RefreshCw, 
   ExternalLink, Layers, Zap, BarChart3, ArrowUpRight, ArrowDownRight, 
-  Clock, Flame, Target, Award
+  Clock, Flame, Target, Award, LineChart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ import { useAllPairsLength, usePairAddress, usePairDetails } from '@/hooks/usePo
 import { TOKEN_LIST, CONTRACTS, getTokenByAddress, PHAROS_TESTNET } from '@/config/contracts';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import PriceChart from '@/components/PriceChart';
 
 const getTokenLogo = (symbol: string): string => {
   switch (symbol) {
@@ -499,6 +500,37 @@ const Analytics = () => {
                   <Line yAxisId="right" type="monotone" dataKey="volume" stroke="hsl(142, 71%, 45%)" strokeWidth={3} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Price Charts Section */}
+          <Card className="glass-card p-6 mb-10">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <LineChart className="w-5 h-5 text-primary" />
+                  Live Price Charts
+                </h3>
+                <p className="text-sm text-muted-foreground">Real-time price data from on-chain reserves</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <PriceChart 
+                tokenA={TOKEN_LIST.find(t => t.symbol === 'OCTO')} 
+                tokenB={TOKEN_LIST.find(t => t.symbol === 'USDC')} 
+              />
+              <PriceChart 
+                tokenA={TOKEN_LIST.find(t => t.symbol === 'ETH')} 
+                tokenB={TOKEN_LIST.find(t => t.symbol === 'USDC')} 
+              />
+              <PriceChart 
+                tokenA={TOKEN_LIST.find(t => t.symbol === 'BNB')} 
+                tokenB={TOKEN_LIST.find(t => t.symbol === 'USDC')} 
+              />
+              <PriceChart 
+                tokenA={TOKEN_LIST.find(t => t.symbol === 'OCTO')} 
+                tokenB={TOKEN_LIST.find(t => t.symbol === 'ETH')} 
+              />
             </div>
           </Card>
 
