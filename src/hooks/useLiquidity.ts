@@ -80,6 +80,17 @@ export const useLiquidity = () => {
     return { token0: token0 as `0x${string}` | undefined, token1: token1 as `0x${string}` | undefined };
   };
 
+  // Check token allowance for Router
+  const useGetTokenAllowance = (token: Token | null) => {
+    const tokenAddress = token?.isNative ? undefined : token?.address;
+    const { data: allowance, refetch } = useReadContract({
+      address: tokenAddress, abi: allowanceAbi, functionName: 'allowance',
+      args: address ? [address, CONTRACTS.ROUTER] : undefined,
+      query: { enabled: !!tokenAddress && !!address },
+    });
+    return { allowance: (allowance as bigint) || BigInt(0), refetch };
+  };
+
   const approve = useCallback(async (token: Token) => {
     if (!address || token.isNative) return;
     try {
@@ -178,5 +189,5 @@ export const useLiquidity = () => {
     finally { setIsLoading(false); }
   }, [address, writeContractAsync]);
 
-  return { addLiquidity, removeLiquidity, approve, approveLPToken, useGetPair, useGetReserves, useGetLPBalance, useGetTotalSupply, useGetLPAllowance, useGetPairTokens, isLoading };
+  return { addLiquidity, removeLiquidity, approve, approveLPToken, useGetPair, useGetReserves, useGetLPBalance, useGetTotalSupply, useGetLPAllowance, useGetPairTokens, useGetTokenAllowance, isLoading };
 };

@@ -46,6 +46,7 @@ const Liquidity = () => {
   const { 
     addLiquidity, removeLiquidity, approve, approveLPToken,
     useGetPair, useGetReserves, useGetLPBalance, useGetTotalSupply, useGetLPAllowance, useGetPairTokens,
+    useGetTokenAllowance,
     isLoading 
   } = useLiquidity();
   
@@ -58,6 +59,10 @@ const Liquidity = () => {
   const totalSupply = useGetTotalSupply(pairAddress);
   const { allowance: lpAllowance, refetch: refetchLPAllowance } = useGetLPAllowance(pairAddress);
   const { token0: pairToken0, token1: pairToken1 } = useGetPairTokens(pairAddress);
+  
+  // Token allowances for add liquidity
+  const { allowance: allowanceA, refetch: refetchAllowanceA } = useGetTokenAllowance(tokenA);
+  const { allowance: allowanceB, refetch: refetchAllowanceB } = useGetTokenAllowance(tokenB);
 
   const isPairExists = pairAddress && pairAddress !== '0x0000000000000000000000000000000000000000';
   const hasReserves = reserve0 > BigInt(0) && reserve1 > BigInt(0);
@@ -65,6 +70,12 @@ const Liquidity = () => {
   // Calculate LP amount to remove
   const lpAmountToRemove = lpBalance * BigInt(removePercent) / BigInt(100);
   const needsLPApproval = lpAmountToRemove > BigInt(0) && lpAllowance < lpAmountToRemove;
+  
+  // Calculate token allowance needs for add liquidity
+  const amountAParsed = amountA && parseFloat(amountA) > 0 ? parseUnits(amountA, tokenA.decimals) : BigInt(0);
+  const amountBParsed = amountB && parseFloat(amountB) > 0 ? parseUnits(amountB, tokenB.decimals) : BigInt(0);
+  const needsApprovalA = !tokenA.isNative && amountAParsed > BigInt(0) && allowanceA < amountAParsed;
+  const needsApprovalB = !tokenB.isNative && amountBParsed > BigInt(0) && allowanceB < amountBParsed;
 
   // Calculate expected output amounts
   const getExpectedAmounts = () => {
@@ -115,6 +126,24 @@ const Liquidity = () => {
     }
   };
 
+  const handleApproveTokenA = async () => {
+    try {
+      await approve(tokenA);
+      refetchAllowanceA();
+    } catch (error) {
+      console.error('Approve token A failed:', error);
+    }
+  };
+
+  const handleApproveTokenB = async () => {
+    try {
+      await approve(tokenB);
+      refetchAllowanceB();
+    } catch (error) {
+      console.error('Approve token B failed:', error);
+    }
+  };
+
   const handleAddLiquidity = async () => {
     if (!amountA || !amountB) return;
     try {
@@ -122,6 +151,8 @@ const Liquidity = () => {
       setAmountA('');
       setAmountB('');
       refetchLPBalance();
+      refetchAllowanceA();
+      refetchAllowanceB();
       toast.success('Liquidity added successfully!');
     } catch (error) {
       console.error('Add liquidity failed:', error);
@@ -257,14 +288,40 @@ const Liquidity = () => {
                   </div>
                 )}
 
-                <Button
-                  variant="glow" size="lg" className="w-full"
-                  disabled={!isConnected || !amountA || !amountB || isLoading}
-                  onClick={handleAddLiquidity}
-                >
-                  {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {!isConnected ? 'Connect Wallet' : isLoading ? 'Adding...' : 'Add Liquidity'}
-                </Button>
+                {/* Approval and Add Liquidity Buttons */}
+                <div className="space-y-3">
+                  {needsApprovalA && (
+                    <Button
+                      variant="outline" size="lg" className="w-full"
+                      disabled={!isConnected || !amountA || isLoading}
+                      onClick={handleApproveTokenA}
+                    >
+                      {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Approve {tokenA.symbol}
+                    </Button>
+                  )}
+                  {needsApprovalB && (
+                    <Button
+                      variant="outline" size="lg" className="w-full"
+                      disabled={!isConnected || !amountB || isLoading}
+                      onClick={handleApproveTokenB}
+                    >
+                      {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Approve {tokenB.symbol}
+                    </Button>
+                  )}
+                  <Button
+                    variant="glow" size="lg" className="w-full"
+                    disabled={!isConnected || !amountA || !amountB || isLoading || needsApprovalA || needsApprovalB}
+                    onClick={handleAddLiquidity}
+                  >
+                    {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    {!isConnected ? 'Connect Wallet' : 
+                     needsApprovalA ? `Approve ${tokenA.symbol} First` :
+                     needsApprovalB ? `Approve ${tokenB.symbol} First` :
+                     isLoading ? 'Adding...' : 'Add Liquidity'}
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="remove">
