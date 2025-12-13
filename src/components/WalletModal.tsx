@@ -1,0 +1,114 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useConnect } from 'wagmi';
+import { toast } from 'sonner';
+
+interface WalletModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const walletOptions = [
+  {
+    id: 'metaMask',
+    name: 'MetaMask',
+    icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg',
+    description: 'Connect with MetaMask browser extension',
+  },
+  {
+    id: 'okxWallet',
+    name: 'OKX Wallet',
+    icon: 'https://static.okx.com/cdn/assets/imgs/221/C5E7F93B6C22D58C.png',
+    description: 'Connect with OKX Wallet',
+  },
+  {
+    id: 'rabby',
+    name: 'Rabby Wallet',
+    icon: 'https://rabby.io/assets/images/logo-128.png',
+    description: 'Connect with Rabby Wallet',
+  },
+  {
+    id: 'bitget',
+    name: 'Bitget Wallet',
+    icon: 'https://web3.bitget.com/favicon.ico',
+    description: 'Connect with Bitget Wallet',
+  },
+];
+
+const WalletModal = ({ isOpen, onClose }: WalletModalProps) => {
+  const { connect, connectors, isPending } = useConnect();
+
+  const handleConnect = async (walletId: string) => {
+    try {
+      // Find the appropriate connector
+      let connector = connectors.find((c) => c.id === walletId);
+      
+      // Fallback to injected if specific wallet not found
+      if (!connector) {
+        connector = connectors.find((c) => c.id === 'injected');
+      }
+
+      if (connector) {
+        connect(
+          { connector },
+          {
+            onSuccess: () => {
+              toast.success('Wallet connected successfully!');
+              onClose();
+            },
+            onError: (error) => {
+              toast.error(error.message || 'Failed to connect wallet');
+            },
+          }
+        );
+      } else {
+        toast.error('Wallet not found. Please install the extension.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to connect wallet');
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md glass-card border-border/50">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-center">
+            Connect Wallet
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 mt-4">
+          {walletOptions.map((wallet) => (
+            <button
+              key={wallet.id}
+              onClick={() => handleConnect(wallet.id)}
+              disabled={isPending}
+              className="wallet-btn w-full group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <img
+                src={wallet.icon}
+                alt={wallet.name}
+                className="w-10 h-10 rounded-xl object-contain bg-background p-1"
+              />
+              <div className="flex-1 text-left">
+                <p className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {wallet.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {wallet.description}
+                </p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-muted group-hover:bg-primary transition-colors" />
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center mt-4">
+          By connecting, you agree to our Terms of Service
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default WalletModal;
