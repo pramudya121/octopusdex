@@ -303,12 +303,12 @@ const Docs = () => {
               <RoadmapItem 
                 phase="Phase 3" 
                 title="Analytics & UX" 
-                status="in-progress"
+                status="completed"
                 items={[
-                  'Analytics dashboard with charts',
-                  'Portfolio tracking',
-                  'Pool explorer',
-                  'Modern responsive UI'
+                  'Analytics dashboard with interactive charts',
+                  'Portfolio tracking with token balances',
+                  'Pool explorer with grid/list views',
+                  'Modern responsive UI with animations'
                 ]}
               />
               <RoadmapItem 
