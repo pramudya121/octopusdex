@@ -3,16 +3,19 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useState } from 'react';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X, BookOpen } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X, BookOpen, ArrowDownUp, Target, History } from 'lucide-react';
 import octopusLogo from '@/assets/octopus-logo.png';
 import WalletModal from './WalletModal';
 
 const navItems = [
   { path: '/', label: 'Swap', icon: ArrowLeftRight },
   { path: '/liquidity', label: 'Liquidity', icon: Droplets },
+  { path: '/wrap', label: 'Wrap', icon: ArrowDownUp },
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
+  { path: '/limit-orders', label: 'Limit', icon: Target },
+  { path: '/history', label: 'History', icon: History },
   { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
