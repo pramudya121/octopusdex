@@ -15,7 +15,8 @@ import octoLogo from '@/assets/tokens/octo.png';
 import bnbLogo from '@/assets/tokens/bnb.png';
 import ethLogo from '@/assets/tokens/eth.png';
 import usdcLogo from '@/assets/tokens/usdc.png';
-import phrsLogo from '@/assets/tokens/octo.png';
+
+const phrsLogo = '/tokens/phrs.png';
 
 const getTokenLogo = (symbol: string): string => {
   switch (symbol) {
@@ -116,25 +117,33 @@ const SwapCard = () => {
       {/* Settings Panel */}
       {showSettings && (
         <div className="mb-4 p-4 bg-secondary/30 rounded-xl">
-          <p className="text-sm text-muted-foreground mb-2">Slippage Tolerance</p>
-          <div className="flex gap-2">
+          <p className="text-sm text-muted-foreground mb-3">Slippage Tolerance</p>
+          <div className="flex gap-2 flex-wrap">
             {[0.1, 0.5, 1.0].map((s) => (
               <Button
                 key={s}
                 variant={slippage === s ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSlippage(s)}
+                className="min-w-[60px]"
               >
                 {s}%
               </Button>
             ))}
-            <Input
-              type="number"
-              value={slippage}
-              onChange={(e) => setSlippage(parseFloat(e.target.value) || 0.5)}
-              className="w-20 h-9 text-center"
-            />
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                value={slippage}
+                onChange={(e) => setSlippage(parseFloat(e.target.value) || 0.5)}
+                className="w-20 h-9 text-center"
+                placeholder="Custom"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+            </div>
           </div>
+          {slippage > 5 && (
+            <p className="text-xs text-destructive mt-2">High slippage may result in unfavorable rates</p>
+          )}
         </div>
       )}
 
@@ -142,9 +151,17 @@ const SwapCard = () => {
       <div className="token-input mb-2">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-muted-foreground">You Pay</span>
-          <button onClick={setMaxAmount} className="text-sm text-primary hover:underline">
-            Balance: {parseFloat(balanceIn).toFixed(4)}
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Balance: {parseFloat(balanceIn).toFixed(4)}</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={setMaxAmount}
+              className="h-6 px-2 text-xs text-primary hover:text-primary/80"
+            >
+              MAX
+            </Button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Input
