@@ -2,8 +2,12 @@ import Header from '@/components/Header';
 import SwapCard from '@/components/SwapCard';
 import WaveBackground from '@/components/WaveBackground';
 import { Helmet } from 'react-helmet-async';
+import { useAllPairsLength } from '@/hooks/usePools';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
+  const { pairsCount, isLoading } = useAllPairsLength();
+
   return (
     <>
       <Helmet>
@@ -37,7 +41,11 @@ const Index = () => {
               <p className="text-sm text-muted-foreground mt-1">TVL</p>
             </div>
             <div className="glass-card p-6 text-center">
-              <p className="text-3xl font-bold text-gradient">0</p>
+              {isLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+              ) : (
+                <p className="text-3xl font-bold text-gradient">{pairsCount}</p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">Total Pairs</p>
             </div>
             <div className="glass-card p-6 text-center">
