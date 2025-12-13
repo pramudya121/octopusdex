@@ -13,7 +13,6 @@ import Analytics from "./pages/Analytics";
 import Portfolio from "./pages/Portfolio";
 import Docs from "./pages/Docs";
 import Wrap from "./pages/Wrap";
-import LimitOrders from "./pages/LimitOrders";
 import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 
@@ -35,7 +34,6 @@ const App = () => (
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/wrap" element={<Wrap />} />
-              <Route path="/limit-orders" element={<LimitOrders />} />
               <Route path="/history" element={<History />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { parseEther, formatEther, formatUnits } from 'viem';
 import Header from '@/components/Header';
 import WaveBackground from '@/components/WaveBackground';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowDownUp, Loader2, Check, Wallet, RefreshCw } from 'lucide-react';
-import { CONTRACTS } from '@/config/contracts';
+import { ArrowDownUp, Loader2, Check, Wallet, RefreshCw, ExternalLink } from 'lucide-react';
+import { CONTRACTS, PHAROS_TESTNET } from '@/config/contracts';
 import { WETH_ABI } from '@/config/abis';
 import { toast } from 'sonner';
 
@@ -18,15 +18,20 @@ const Wrap = () => {
   const [amount, setAmount] = useState('');
   const [activeTab, setActiveTab] = useState<'wrap' | 'unwrap'>('wrap');
 
-  // PHRS Balance
+  // PHRS Balance (native)
   const { data: phrsBalance, refetch: refetchPhrs } = useBalance({
     address,
   });
 
-  // WPHRS Balance
-  const { data: wphrsBalance, refetch: refetchWphrs } = useBalance({
-    address,
+  // WPHRS Balance (ERC20)
+  const { data: wphrsBalanceRaw, refetch: refetchWphrs } = useReadContract({
+    address: CONTRACTS.WETH,
+    abi: WETH_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
   });
+
+  const wphrsBalance = wphrsBalanceRaw ? formatUnits(wphrsBalanceRaw as bigint, 18) : '0';
 
   // Wrap PHRS to WPHRS
   const { writeContractAsync: wrap, data: wrapHash, isPending: isWrapping } = useWriteContract();
@@ -39,6 +44,15 @@ const Wrap = () => {
   const { isLoading: isUnwrapConfirming, isSuccess: isUnwrapSuccess } = useWaitForTransactionReceipt({
     hash: unwrapHash,
   });
+
+  // Refetch balances after successful transactions
+  useEffect(() => {
+    if (isWrapSuccess || isUnwrapSuccess) {
+      refetchPhrs();
+      refetchWphrs();
+      setAmount('');
+    }
+  }, [isWrapSuccess, isUnwrapSuccess, refetchPhrs, refetchWphrs]);
 
   const handleWrap = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -54,9 +68,9 @@ const Wrap = () => {
         value: parseEther(amount),
       } as any);
       toast.success('Wrapping PHRS...');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Wrap error:', error);
-      toast.error('Failed to wrap PHRS');
+      toast.error(error?.shortMessage || 'Failed to wrap PHRS');
     }
   };
 
@@ -74,9 +88,9 @@ const Wrap = () => {
         args: [parseEther(amount)],
       } as any);
       toast.success('Unwrapping WPHRS...');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unwrap error:', error);
-      toast.error('Failed to unwrap WPHRS');
+      toast.error(error?.shortMessage || 'Failed to unwrap WPHRS');
     }
   };
 
@@ -91,16 +105,16 @@ const Wrap = () => {
       if (phrsBalance) {
         // Leave some for gas
         const maxAmount = parseFloat(formatEther(phrsBalance.value)) - 0.01;
-        setAmount(maxAmount > 0 ? maxAmount.toString() : '0');
+        setAmount(maxAmount > 0 ? maxAmount.toFixed(6) : '0');
       }
     } else {
-      if (wphrsBalance) {
-        setAmount(formatEther(wphrsBalance.value));
-      }
+      setAmount(wphrsBalance);
     }
   };
 
   const isLoading = isWrapping || isWrapConfirming || isUnwrapping || isUnwrapConfirming;
+  const phrsBalanceFormatted = phrsBalance ? parseFloat(formatEther(phrsBalance.value)).toFixed(4) : '0.00';
+  const wphrsBalanceFormatted = parseFloat(wphrsBalance).toFixed(4);
 
   return (
     <>
@@ -151,7 +165,7 @@ const Wrap = () => {
                     <span className="text-sm text-muted-foreground">PHRS Balance</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    {phrsBalance ? parseFloat(formatEther(phrsBalance.value)).toFixed(4) : '0.00'}
+                    {phrsBalanceFormatted}
                   </p>
                 </div>
                 <div className="p-4 rounded-xl bg-secondary/30 border border-border/50">
@@ -160,13 +174,13 @@ const Wrap = () => {
                     <span className="text-sm text-muted-foreground">WPHRS Balance</span>
                   </div>
                   <p className="text-lg font-semibold text-foreground">
-                    {wphrsBalance ? parseFloat(formatEther(wphrsBalance.value)).toFixed(4) : '0.00'}
+                    {wphrsBalanceFormatted}
                   </p>
                 </div>
               </div>
 
               {/* Tabs */}
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'wrap' | 'unwrap')}>
+              <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'wrap' | 'unwrap'); setAmount(''); }}>
                 <TabsList className="grid w-full grid-cols-2 bg-secondary/30">
                   <TabsTrigger value="wrap" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                     Wrap PHRS
@@ -180,12 +194,15 @@ const Wrap = () => {
                   <div className="token-input">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-muted-foreground">Amount to Wrap</span>
-                      <button
-                        onClick={setMaxAmount}
-                        className="text-xs text-primary hover:text-primary/80 font-medium"
-                      >
-                        MAX
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Balance: {phrsBalanceFormatted}</span>
+                        <button
+                          onClick={setMaxAmount}
+                          className="text-xs text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded bg-primary/10"
+                        >
+                          MAX
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <Input
@@ -254,18 +271,32 @@ const Wrap = () => {
                       )}
                     </Button>
                   )}
+
+                  {wrapHash && (
+                    <a
+                      href={`${PHAROS_TESTNET.blockExplorers.default.url}/tx/${wrapHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      View Transaction <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="unwrap" className="space-y-4 mt-4">
                   <div className="token-input">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm text-muted-foreground">Amount to Unwrap</span>
-                      <button
-                        onClick={setMaxAmount}
-                        className="text-xs text-primary hover:text-primary/80 font-medium"
-                      >
-                        MAX
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Balance: {wphrsBalanceFormatted}</span>
+                        <button
+                          onClick={setMaxAmount}
+                          className="text-xs text-primary hover:text-primary/80 font-medium px-2 py-0.5 rounded bg-primary/10"
+                        >
+                          MAX
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <Input
@@ -317,7 +348,7 @@ const Wrap = () => {
                       variant="glow"
                       className="w-full"
                       onClick={handleUnwrap}
-                      disabled={isLoading || !amount || parseFloat(amount) <= 0}
+                      disabled={isLoading || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > parseFloat(wphrsBalance)}
                     >
                       {isLoading ? (
                         <>
@@ -334,6 +365,17 @@ const Wrap = () => {
                       )}
                     </Button>
                   )}
+
+                  {unwrapHash && (
+                    <a
+                      href={`${PHAROS_TESTNET.blockExplorers.default.url}/tx/${unwrapHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      View Transaction <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
                 </TabsContent>
               </Tabs>
 
@@ -343,6 +385,21 @@ const Wrap = () => {
                 <p className="text-sm text-muted-foreground">
                   WPHRS (Wrapped PHRS) is an ERC-20 compatible version of the native PHRS token. 
                   It's required for trading on decentralized exchanges and interacting with smart contracts.
+                </p>
+              </div>
+
+              {/* Contract Info */}
+              <div className="p-3 rounded-lg bg-secondary/20 border border-border/30">
+                <p className="text-xs text-muted-foreground">
+                  WPHRS Contract: 
+                  <a 
+                    href={`${PHAROS_TESTNET.blockExplorers.default.url}/address/${CONTRACTS.WETH}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 text-primary hover:underline font-mono"
+                  >
+                    {CONTRACTS.WETH.slice(0, 10)}...{CONTRACTS.WETH.slice(-8)}
+                  </a>
                 </p>
               </div>
             </CardContent>
