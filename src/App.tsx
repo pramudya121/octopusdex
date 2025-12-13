@@ -11,6 +11,7 @@ import Liquidity from "./pages/Liquidity";
 import Pools from "./pages/Pools";
 import Analytics from "./pages/Analytics";
 import Portfolio from "./pages/Portfolio";
+import Faucet from "./pages/Faucet";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/pools" element={<Pools />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/faucet" element={<Faucet />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
