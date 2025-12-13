@@ -82,8 +82,15 @@ export const useSwap = () => {
     }
   }, [address, writeContractAsync]);
 
-  const swap = useCallback(async (tokenIn: Token, tokenOut: Token, amountIn: string, amountOutMin: bigint) => {
-    if (!address) return;
+  // Multi-hop swap function
+  const swapWithPath = useCallback(async (
+    path: `0x${string}`[],
+    tokenIn: Token,
+    tokenOut: Token,
+    amountIn: string,
+    amountOutMin: bigint
+  ) => {
+    if (!address || path.length < 2) return;
     setIsSwapping(true);
     const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60);
     const slippageAmount = amountOutMin * BigInt(1000 - SLIPPAGE * 10) / BigInt(1000);
@@ -93,26 +100,29 @@ export const useSwap = () => {
       let hash: `0x${string}`;
 
       if (tokenIn.isNative) {
+        // swapExactETHForTokens
         hash = await writeContractAsync({
           address: CONTRACTS.ROUTER,
           abi: [{ inputs: [{ name: 'amountOutMin', type: 'uint256' }, { name: 'path', type: 'address[]' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], name: 'swapExactETHForTokens', outputs: [{ name: 'amounts', type: 'uint256[]' }], stateMutability: 'payable', type: 'function' }],
           functionName: 'swapExactETHForTokens',
-          args: [slippageAmount, [CONTRACTS.WETH, tokenOut.address], address, deadline],
+          args: [slippageAmount, path, address, deadline],
           value: parseUnits(amountIn, 18),
         } as any);
       } else if (tokenOut.isNative) {
+        // swapExactTokensForETH
         hash = await writeContractAsync({
           address: CONTRACTS.ROUTER,
           abi: [{ inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'amountOutMin', type: 'uint256' }, { name: 'path', type: 'address[]' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], name: 'swapExactTokensForETH', outputs: [{ name: 'amounts', type: 'uint256[]' }], stateMutability: 'nonpayable', type: 'function' }],
           functionName: 'swapExactTokensForETH',
-          args: [parseUnits(amountIn, tokenIn.decimals), slippageAmount, [tokenIn.address, CONTRACTS.WETH], address, deadline],
+          args: [parseUnits(amountIn, tokenIn.decimals), slippageAmount, path, address, deadline],
         } as any);
       } else {
+        // swapExactTokensForTokens
         hash = await writeContractAsync({
           address: CONTRACTS.ROUTER,
           abi: [{ inputs: [{ name: 'amountIn', type: 'uint256' }, { name: 'amountOutMin', type: 'uint256' }, { name: 'path', type: 'address[]' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], name: 'swapExactTokensForTokens', outputs: [{ name: 'amounts', type: 'uint256[]' }], stateMutability: 'nonpayable', type: 'function' }],
           functionName: 'swapExactTokensForTokens',
-          args: [parseUnits(amountIn, tokenIn.decimals), slippageAmount, [tokenIn.address, tokenOut.address], address, deadline],
+          args: [parseUnits(amountIn, tokenIn.decimals), slippageAmount, path, address, deadline],
         } as any);
       }
 
@@ -128,5 +138,11 @@ export const useSwap = () => {
     }
   }, [address, writeContractAsync]);
 
-  return { swap, approve, useGetAmountsOut, useCheckAllowance, isSwapping, txHash };
+  const swap = useCallback(async (tokenIn: Token, tokenOut: Token, amountIn: string, amountOutMin: bigint) => {
+    const tokenInAddress = tokenIn.isNative ? CONTRACTS.WETH : tokenIn.address;
+    const tokenOutAddress = tokenOut.isNative ? CONTRACTS.WETH : tokenOut.address;
+    return swapWithPath([tokenInAddress, tokenOutAddress], tokenIn, tokenOut, amountIn, amountOutMin);
+  }, [swapWithPath]);
+
+  return { swap, swapWithPath, approve, useGetAmountsOut, useCheckAllowance, isSwapping, txHash };
 };

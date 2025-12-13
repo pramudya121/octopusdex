@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowDownUp, Settings, ChevronDown, Loader2, AlertTriangle } from 'lucide-react';
-import { Token, TOKEN_LIST, CONTRACTS } from '@/config/contracts';
+import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap } from 'lucide-react';
+import { Token, TOKEN_LIST } from '@/config/contracts';
 import TokenSelector from '@/components/TokenSelector';
 import { useAccount } from 'wagmi';
 import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
-import { calculatePriceImpact, calculateMinimumAmountOut } from '@/lib/uniswapV2Library';
+import { useBestRoute } from '@/hooks/useMultiHopSwap';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import octoLogo from '@/assets/tokens/octo.png';
@@ -19,7 +19,7 @@ import phrsLogo from '@/assets/tokens/octo.png';
 
 const getTokenLogo = (symbol: string): string => {
   switch (symbol) {
-    case 'PHRS': return phrsLogo;
+    case 'PHRS': case 'WPHRS': return phrsLogo;
     case 'OCTO': return octoLogo;
     case 'BNB': return bnbLogo;
     case 'ETH': return ethLogo;
@@ -38,20 +38,22 @@ const SwapCard = () => {
   const [isTokenOutSelectorOpen, setIsTokenOutSelectorOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  const { swap, approve, useGetAmountsOut, useCheckAllowance, isSwapping } = useSwap();
-  const { amountOut, amountOutRaw, isLoading: isQuoteLoading } = useGetAmountsOut(amountIn, tokenIn, tokenOut);
-  const { allowance, refetch: refetchAllowance } = useCheckAllowance(tokenIn);
+  const { swapWithPath, approve, useCheckAllowance, isSwapping } = useSwap();
   const { formatted: balanceIn } = useTokenBalance(tokenIn);
   const { formatted: balanceOut } = useTokenBalance(tokenOut);
-
+  
+  // Multi-hop routing
   const amountInParsed = amountIn ? parseUnits(amountIn, tokenIn.decimals) : BigInt(0);
+  const { bestRoute, allRoutes, isLoading: isQuoteLoading } = useBestRoute(amountInParsed, tokenIn, tokenOut);
+  
+  const { allowance, refetch: refetchAllowance } = useCheckAllowance(tokenIn);
   const needsApproval = !tokenIn.isNative && amountInParsed > BigInt(0) && allowance < amountInParsed;
 
   const switchTokens = () => {
     const tempToken = tokenIn;
     setTokenIn(tokenOut);
     setTokenOut(tempToken);
-    setAmountIn(amountOut);
+    setAmountIn(bestRoute?.amountOutFormatted || '');
   };
 
   const handleApprove = async () => {
@@ -64,12 +66,12 @@ const SwapCard = () => {
   };
 
   const handleSwap = async () => {
-    if (!amountIn || amountOutRaw <= BigInt(0)) return;
+    if (!amountIn || !bestRoute || bestRoute.amountOut <= BigInt(0)) return;
     
     try {
-      await swap(tokenIn, tokenOut, amountIn, amountOutRaw);
+      await swapWithPath(bestRoute.path, tokenIn, tokenOut, amountIn, bestRoute.amountOut);
       setAmountIn('');
-      toast.success(`Swapped ${amountIn} ${tokenIn.symbol} for ${amountOut} ${tokenOut.symbol}`);
+      toast.success(`Swapped ${amountIn} ${tokenIn.symbol} for ${bestRoute.amountOutFormatted} ${tokenOut.symbol}`);
     } catch (error) {
       console.error('Swap failed:', error);
     }
@@ -183,7 +185,7 @@ const SwapCard = () => {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             ) : (
               <span className="text-2xl font-semibold">
-                {amountIn && parseFloat(amountOut) > 0 ? parseFloat(amountOut).toFixed(6) : '0.0'}
+                {amountIn && bestRoute && parseFloat(bestRoute.amountOutFormatted) > 0 ? parseFloat(bestRoute.amountOutFormatted).toFixed(6) : '0.0'}
               </span>
             )}
           </div>
@@ -200,20 +202,42 @@ const SwapCard = () => {
       </div>
 
       {/* Swap Details */}
-      {amountIn && parseFloat(amountOut) > 0 && (
+      {amountIn && bestRoute && parseFloat(bestRoute.amountOutFormatted) > 0 && (
         <div className="mt-4 p-3 bg-secondary/30 rounded-xl text-sm space-y-2">
+          {/* Route Display */}
+          {bestRoute.isMultiHop && (
+            <div className="flex items-center justify-between text-primary">
+              <span className="flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Best Route
+              </span>
+              <div className="flex items-center gap-1">
+                {bestRoute.pathSymbols.map((symbol, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {symbol}
+                    {i < bestRoute.pathSymbols.length - 1 && <ArrowRight className="w-3 h-3" />}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Rate</span>
-            <span>1 {tokenIn.symbol} = {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}</span>
+            <span>1 {tokenIn.symbol} = {(parseFloat(bestRoute.amountOutFormatted) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Min. Received</span>
-            <span>{(parseFloat(amountOut) * (1 - slippage / 100)).toFixed(6)} {tokenOut.symbol}</span>
+            <span>{(parseFloat(bestRoute.amountOutFormatted) * (1 - slippage / 100)).toFixed(6)} {tokenOut.symbol}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Slippage</span>
             <span>{slippage}%</span>
           </div>
+          {allRoutes.length > 1 && (
+            <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t border-border/30">
+              <span>Routes compared</span>
+              <span>{allRoutes.length}</span>
+            </div>
+          )}
         </div>
       )}
 
