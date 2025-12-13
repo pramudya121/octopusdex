@@ -292,35 +292,36 @@ const Liquidity = () => {
                 <div className="space-y-3">
                   {needsApprovalA && (
                     <Button
-                      variant="outline" size="lg" className="w-full"
+                      variant="outline" size="lg" className="w-full border-primary/50 hover:bg-primary/10"
                       disabled={!isConnected || !amountA || isLoading}
                       onClick={handleApproveTokenA}
                     >
                       {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      <ArrowRight className="w-4 h-4 mr-2" />
                       Approve {tokenA.symbol}
                     </Button>
                   )}
-                  {needsApprovalB && (
+                  {needsApprovalB && !needsApprovalA && (
                     <Button
-                      variant="outline" size="lg" className="w-full"
+                      variant="outline" size="lg" className="w-full border-primary/50 hover:bg-primary/10"
                       disabled={!isConnected || !amountB || isLoading}
                       onClick={handleApproveTokenB}
                     >
                       {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      <ArrowRight className="w-4 h-4 mr-2" />
                       Approve {tokenB.symbol}
                     </Button>
                   )}
-                  <Button
-                    variant="glow" size="lg" className="w-full"
-                    disabled={!isConnected || !amountA || !amountB || isLoading || needsApprovalA || needsApprovalB}
-                    onClick={handleAddLiquidity}
-                  >
-                    {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    {!isConnected ? 'Connect Wallet' : 
-                     needsApprovalA ? `Approve ${tokenA.symbol} First` :
-                     needsApprovalB ? `Approve ${tokenB.symbol} First` :
-                     isLoading ? 'Adding...' : 'Add Liquidity'}
-                  </Button>
+                  {!needsApprovalA && !needsApprovalB && (
+                    <Button
+                      variant="glow" size="lg" className="w-full"
+                      disabled={!isConnected || !amountA || !amountB || isLoading}
+                      onClick={handleAddLiquidity}
+                    >
+                      {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {!isConnected ? 'Connect Wallet' : isLoading ? 'Adding...' : 'Add Liquidity'}
+                    </Button>
+                  )}
                 </div>
               </TabsContent>
 
