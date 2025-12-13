@@ -7,9 +7,14 @@ import { toast } from 'sonner';
 const DEADLINE_MINUTES = 20;
 const SLIPPAGE = 0.5;
 
+// Minimal ABIs
 const getPairAbi = [{ inputs: [{ name: 'tokenA', type: 'address' }, { name: 'tokenB', type: 'address' }], name: 'getPair', outputs: [{ name: 'pair', type: 'address' }], stateMutability: 'view', type: 'function' }] as const;
 const getReservesAbi = [{ inputs: [], name: 'getReserves', outputs: [{ name: '_reserve0', type: 'uint112' }, { name: '_reserve1', type: 'uint112' }, { name: '_blockTimestampLast', type: 'uint32' }], stateMutability: 'view', type: 'function' }] as const;
 const balanceOfAbi = [{ inputs: [{ name: 'account', type: 'address' }], name: 'balanceOf', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' }] as const;
+const totalSupplyAbi = [{ inputs: [], name: 'totalSupply', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' }] as const;
+const allowanceAbi = [{ inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], name: 'allowance', outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view', type: 'function' }] as const;
+const token0Abi = [{ inputs: [], name: 'token0', outputs: [{ name: '', type: 'address' }], stateMutability: 'view', type: 'function' }] as const;
+const token1Abi = [{ inputs: [], name: 'token1', outputs: [{ name: '', type: 'address' }], stateMutability: 'view', type: 'function' }] as const;
 
 export const useLiquidity = () => {
   const { address } = useAccount();
@@ -46,6 +51,35 @@ export const useLiquidity = () => {
     return { balance: (balance as bigint) || BigInt(0), refetch };
   };
 
+  const useGetTotalSupply = (pairAddress: `0x${string}` | undefined) => {
+    const { data: totalSupply } = useReadContract({
+      address: pairAddress, abi: totalSupplyAbi, functionName: 'totalSupply',
+      query: { enabled: !!pairAddress && pairAddress !== '0x0000000000000000000000000000000000000000' },
+    });
+    return (totalSupply as bigint) || BigInt(0);
+  };
+
+  const useGetLPAllowance = (pairAddress: `0x${string}` | undefined) => {
+    const { data: allowance, refetch } = useReadContract({
+      address: pairAddress, abi: allowanceAbi, functionName: 'allowance',
+      args: address ? [address, CONTRACTS.ROUTER] : undefined,
+      query: { enabled: !!pairAddress && !!address && pairAddress !== '0x0000000000000000000000000000000000000000' },
+    });
+    return { allowance: (allowance as bigint) || BigInt(0), refetch };
+  };
+
+  const useGetPairTokens = (pairAddress: `0x${string}` | undefined) => {
+    const { data: token0 } = useReadContract({
+      address: pairAddress, abi: token0Abi, functionName: 'token0',
+      query: { enabled: !!pairAddress && pairAddress !== '0x0000000000000000000000000000000000000000' },
+    });
+    const { data: token1 } = useReadContract({
+      address: pairAddress, abi: token1Abi, functionName: 'token1',
+      query: { enabled: !!pairAddress && pairAddress !== '0x0000000000000000000000000000000000000000' },
+    });
+    return { token0: token0 as `0x${string}` | undefined, token1: token1 as `0x${string}` | undefined };
+  };
+
   const approve = useCallback(async (token: Token) => {
     if (!address || token.isNative) return;
     try {
@@ -58,6 +92,20 @@ export const useLiquidity = () => {
       toast.success('Token approved!', { id: 'approve' });
       return hash;
     } catch (error: any) { toast.error(error.shortMessage || 'Approval failed', { id: 'approve' }); throw error; }
+  }, [address, writeContractAsync]);
+
+  const approveLPToken = useCallback(async (pairAddress: `0x${string}`) => {
+    if (!address) return;
+    try {
+      toast.loading('Approving LP tokens...', { id: 'approve-lp' });
+      const hash = await writeContractAsync({
+        address: pairAddress,
+        abi: [{ inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'approve', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' }],
+        functionName: 'approve', args: [CONTRACTS.ROUTER, maxUint256],
+      } as any);
+      toast.success('LP tokens approved!', { id: 'approve-lp' });
+      return hash;
+    } catch (error: any) { toast.error(error.shortMessage || 'Approval failed', { id: 'approve-lp' }); throw error; }
   }, [address, writeContractAsync]);
 
   const addLiquidity = useCallback(async (tokenA: Token, tokenB: Token, amountA: string, amountB: string) => {
@@ -97,19 +145,38 @@ export const useLiquidity = () => {
     finally { setIsLoading(false); }
   }, [address, writeContractAsync]);
 
-  const approveLPToken = useCallback(async (pairAddress: `0x${string}`) => {
+  const removeLiquidity = useCallback(async (
+    tokenA: Token, tokenB: Token, lpAmount: bigint, amountAMin: bigint, amountBMin: bigint
+  ) => {
     if (!address) return;
+    setIsLoading(true);
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_MINUTES * 60);
+
     try {
-      toast.loading('Approving LP tokens...', { id: 'approve-lp' });
-      const hash = await writeContractAsync({
-        address: pairAddress,
-        abi: [{ inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'approve', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' }],
-        functionName: 'approve', args: [CONTRACTS.ROUTER, maxUint256],
-      } as any);
-      toast.success('LP tokens approved!', { id: 'approve-lp' });
+      toast.loading('Removing liquidity...', { id: 'remove-liquidity' });
+      let hash: `0x${string}`;
+
+      if (tokenA.isNative || tokenB.isNative) {
+        const token = tokenA.isNative ? tokenB : tokenA;
+        const tokenMin = tokenA.isNative ? amountBMin : amountAMin;
+        const ethMin = tokenA.isNative ? amountAMin : amountBMin;
+        hash = await writeContractAsync({
+          address: CONTRACTS.ROUTER,
+          abi: [{ inputs: [{ name: 'token', type: 'address' }, { name: 'liquidity', type: 'uint256' }, { name: 'amountTokenMin', type: 'uint256' }, { name: 'amountETHMin', type: 'uint256' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], name: 'removeLiquidityETH', outputs: [{ name: 'amountToken', type: 'uint256' }, { name: 'amountETH', type: 'uint256' }], stateMutability: 'nonpayable', type: 'function' }],
+          functionName: 'removeLiquidityETH', args: [token.address, lpAmount, tokenMin, ethMin, address, deadline],
+        } as any);
+      } else {
+        hash = await writeContractAsync({
+          address: CONTRACTS.ROUTER,
+          abi: [{ inputs: [{ name: 'tokenA', type: 'address' }, { name: 'tokenB', type: 'address' }, { name: 'liquidity', type: 'uint256' }, { name: 'amountAMin', type: 'uint256' }, { name: 'amountBMin', type: 'uint256' }, { name: 'to', type: 'address' }, { name: 'deadline', type: 'uint256' }], name: 'removeLiquidity', outputs: [{ name: 'amountA', type: 'uint256' }, { name: 'amountB', type: 'uint256' }], stateMutability: 'nonpayable', type: 'function' }],
+          functionName: 'removeLiquidity', args: [tokenA.address, tokenB.address, lpAmount, amountAMin, amountBMin, address, deadline],
+        } as any);
+      }
+      toast.success('Liquidity removed!', { id: 'remove-liquidity' });
       return hash;
-    } catch (error: any) { toast.error(error.shortMessage || 'Approval failed', { id: 'approve-lp' }); throw error; }
+    } catch (error: any) { console.error('Remove liquidity error:', error); toast.error(error.shortMessage || 'Failed', { id: 'remove-liquidity' }); throw error; }
+    finally { setIsLoading(false); }
   }, [address, writeContractAsync]);
 
-  return { addLiquidity, approve, approveLPToken, useGetPair, useGetReserves, useGetLPBalance, isLoading };
+  return { addLiquidity, removeLiquidity, approve, approveLPToken, useGetPair, useGetReserves, useGetLPBalance, useGetTotalSupply, useGetLPAllowance, useGetPairTokens, isLoading };
 };
