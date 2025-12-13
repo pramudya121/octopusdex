@@ -20,7 +20,8 @@ import octoLogo from '@/assets/tokens/octo.png';
 import bnbLogo from '@/assets/tokens/bnb.png';
 import ethLogo from '@/assets/tokens/eth.png';
 import usdcLogo from '@/assets/tokens/usdc.png';
-import phrsLogo from '@/assets/tokens/octo.png';
+
+const phrsLogo = '/tokens/phrs.png';
 
 const getTokenLogo = (symbol: string): string => {
   switch (symbol) {
@@ -210,9 +211,17 @@ const Liquidity = () => {
                 <div className="token-input mb-4">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm text-muted-foreground">Token A</span>
-                    <button onClick={() => setAmountA(balanceA)} className="text-sm text-primary hover:underline">
-                      Balance: {parseFloat(balanceA).toFixed(4)}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Balance: {parseFloat(balanceA).toFixed(4)}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleAmountAChange(balanceA)}
+                        className="h-6 px-2 text-xs text-primary hover:text-primary/80"
+                      >
+                        MAX
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Input
@@ -238,9 +247,17 @@ const Liquidity = () => {
                 <div className="token-input mb-4">
                   <div className="flex justify-between mb-2">
                     <span className="text-sm text-muted-foreground">Token B</span>
-                    <button onClick={() => handleAmountBChange(balanceB)} className="text-sm text-primary hover:underline">
-                      Balance: {parseFloat(balanceB).toFixed(4)}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Balance: {parseFloat(balanceB).toFixed(4)}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleAmountBChange(balanceB)}
+                        className="h-6 px-2 text-xs text-primary hover:text-primary/80"
+                      >
+                        MAX
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Input

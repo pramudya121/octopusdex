@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { useState } from 'react';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X, BookOpen } from 'lucide-react';
 import octopusLogo from '@/assets/octopus-logo.png';
 import WalletModal from './WalletModal';
 
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
+  { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
 const Header = () => {

@@ -8,6 +8,8 @@ import bnbLogo from '@/assets/tokens/bnb.png';
 import ethLogo from '@/assets/tokens/eth.png';
 import usdcLogo from '@/assets/tokens/usdc.png';
 
+const phrsLogo = '/tokens/phrs.png';
+
 interface TokenSelectorProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,16 +20,12 @@ interface TokenSelectorProps {
 
 const getTokenLogo = (symbol: string): string => {
   switch (symbol) {
-    case 'OCTO':
-      return octoLogo;
-    case 'BNB':
-      return bnbLogo;
-    case 'ETH':
-      return ethLogo;
-    case 'USDC':
-      return usdcLogo;
-    default:
-      return octoLogo;
+    case 'PHRS': case 'WPHRS': return phrsLogo;
+    case 'OCTO': return octoLogo;
+    case 'BNB': return bnbLogo;
+    case 'ETH': return ethLogo;
+    case 'USDC': return usdcLogo;
+    default: return octoLogo;
   }
 };
 
