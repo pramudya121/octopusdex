@@ -92,6 +92,13 @@ export const TOKEN_LIST: Token[] = [
     decimals: 6,
     logoURI: '/tokens/usdc.png',
   },
+  {
+    address: TOKENS.WPHRS,
+    symbol: 'WPHRS',
+    name: 'Wrapped Pharos',
+    decimals: 18,
+    logoURI: '/tokens/phrs.png',
+  },
 ];
 
 export const getTokenByAddress = (address: string): Token | undefined => {
