@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useAccount, usePublicClient } from 'wagmi';
+import { useAccount } from 'wagmi';
 import Header from '@/components/Header';
 import WaveBackground from '@/components/WaveBackground';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,25 +14,15 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  Loader2,
   Droplets,
   ArrowLeftRight,
-  Wallet
+  Wallet,
+  Plus,
+  Minus
 } from 'lucide-react';
-import { PHAROS_TESTNET, TOKEN_LIST, CONTRACTS, getTokenByAddress } from '@/config/contracts';
-import { formatUnits, parseAbiItem } from 'viem';
-
-interface Transaction {
-  hash: string;
-  type: 'swap' | 'addLiquidity' | 'removeLiquidity' | 'wrap' | 'unwrap';
-  tokenIn?: string;
-  tokenOut?: string;
-  amountIn?: string;
-  amountOut?: string;
-  status: 'success';
-  timestamp: Date;
-  blockNumber: bigint;
-}
+import { PHAROS_TESTNET } from '@/config/contracts';
+import { useTransactionHistory, Transaction } from '@/hooks/useTransactionHistory';
+import { useState } from 'react';
 
 const getTokenLogo = (symbol: string): string => {
   const logoMap: Record<string, string> = {
@@ -43,116 +32,24 @@ const getTokenLogo = (symbol: string): string => {
     'BNB': '/tokens/bnb.png',
     'ETH': '/tokens/eth.png',
     'USDC': '/tokens/usdc.png',
+    'LP': '/tokens/octo.png',
   };
   return logoMap[symbol] || '/tokens/octo.png';
 };
 
-const getTokenSymbol = (address: string): string => {
-  const token = getTokenByAddress(address);
-  if (token) {
-    return token.symbol === 'WPHRS' ? 'PHRS' : token.symbol;
-  }
-  return address.slice(0, 6) + '...';
-};
-
-// Swap event signature for UniswapV2 Pair
-const SWAP_EVENT = parseAbiItem('event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)');
-const MINT_EVENT = parseAbiItem('event Mint(address indexed sender, uint256 amount0, uint256 amount1)');
-const BURN_EVENT = parseAbiItem('event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to)');
-const DEPOSIT_EVENT = parseAbiItem('event Deposit(address indexed dst, uint256 wad)');
-const WITHDRAWAL_EVENT = parseAbiItem('event Withdrawal(address indexed src, uint256 wad)');
-
 const History = () => {
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'swap' | 'liquidity'>('all');
-
-  const fetchTransactions = async () => {
-    if (!address || !publicClient) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    const txs: Transaction[] = [];
-
-    try {
-      const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock - BigInt(10000); // Last ~10000 blocks
-
-      // Fetch wrap/unwrap events from WETH contract
-      const [depositLogs, withdrawalLogs] = await Promise.all([
-        publicClient.getLogs({
-          address: CONTRACTS.WETH,
-          event: DEPOSIT_EVENT,
-          args: { dst: address },
-          fromBlock,
-          toBlock: currentBlock,
-        }).catch(() => []),
-        publicClient.getLogs({
-          address: CONTRACTS.WETH,
-          event: WITHDRAWAL_EVENT,
-          args: { src: address },
-          fromBlock,
-          toBlock: currentBlock,
-        }).catch(() => []),
-      ]);
-
-      // Process deposit (wrap) events
-      for (const log of depositLogs) {
-        const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-        txs.push({
-          hash: log.transactionHash,
-          type: 'wrap',
-          tokenIn: 'PHRS',
-          tokenOut: 'WPHRS',
-          amountIn: formatUnits(log.args.wad || BigInt(0), 18),
-          amountOut: formatUnits(log.args.wad || BigInt(0), 18),
-          status: 'success',
-          timestamp: new Date(Number(block.timestamp) * 1000),
-          blockNumber: log.blockNumber,
-        });
-      }
-
-      // Process withdrawal (unwrap) events
-      for (const log of withdrawalLogs) {
-        const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-        txs.push({
-          hash: log.transactionHash,
-          type: 'unwrap',
-          tokenIn: 'WPHRS',
-          tokenOut: 'PHRS',
-          amountIn: formatUnits(log.args.wad || BigInt(0), 18),
-          amountOut: formatUnits(log.args.wad || BigInt(0), 18),
-          status: 'success',
-          timestamp: new Date(Number(block.timestamp) * 1000),
-          blockNumber: log.blockNumber,
-        });
-      }
-
-      // Sort by block number (most recent first)
-      txs.sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber));
-      setTransactions(txs);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [address, publicClient]);
+  const { transactions, isLoading, refetch } = useTransactionHistory();
+  const [activeFilter, setActiveFilter] = useState<'all' | 'swap' | 'liquidity' | 'wrap'>('all');
 
   const handleRefresh = () => {
-    fetchTransactions();
+    refetch();
   };
 
   const filteredTransactions = transactions.filter(tx => {
     if (activeFilter === 'all') return true;
-    if (activeFilter === 'swap') return tx.type === 'swap' || tx.type === 'wrap' || tx.type === 'unwrap';
+    if (activeFilter === 'swap') return tx.type === 'swap';
+    if (activeFilter === 'wrap') return tx.type === 'wrap' || tx.type === 'unwrap';
     if (activeFilter === 'liquidity') return tx.type === 'addLiquidity' || tx.type === 'removeLiquidity';
     return true;
   });
@@ -171,12 +68,14 @@ const History = () => {
   const getTypeIcon = (type: Transaction['type']) => {
     switch (type) {
       case 'swap':
+        return <ArrowLeftRight className="w-4 h-4" />;
       case 'wrap':
       case 'unwrap':
-        return <ArrowLeftRight className="w-4 h-4" />;
+        return <RefreshCw className="w-4 h-4" />;
       case 'addLiquidity':
+        return <Plus className="w-4 h-4" />;
       case 'removeLiquidity':
-        return <Droplets className="w-4 h-4" />;
+        return <Minus className="w-4 h-4" />;
     }
   };
 
@@ -185,8 +84,8 @@ const History = () => {
       swap: { label: 'Swap', className: 'bg-primary/20 text-primary' },
       wrap: { label: 'Wrap', className: 'bg-cyan-500/20 text-cyan-400' },
       unwrap: { label: 'Unwrap', className: 'bg-cyan-500/20 text-cyan-400' },
-      addLiquidity: { label: 'Add Liquidity', className: 'bg-success/20 text-success' },
-      removeLiquidity: { label: 'Remove Liquidity', className: 'bg-warning/20 text-warning' },
+      addLiquidity: { label: 'Add Liquidity', className: 'bg-green-500/20 text-green-400' },
+      removeLiquidity: { label: 'Remove Liquidity', className: 'bg-orange-500/20 text-orange-400' },
     };
     return config[type];
   };
@@ -194,9 +93,9 @@ const History = () => {
   // Stats
   const stats = {
     totalTxs: transactions.length,
-    successTxs: transactions.filter(t => t.status === 'success').length,
-    wraps: transactions.filter(t => t.type === 'wrap' || t.type === 'unwrap').length,
     swaps: transactions.filter(t => t.type === 'swap').length,
+    wraps: transactions.filter(t => t.type === 'wrap' || t.type === 'unwrap').length,
+    liquidity: transactions.filter(t => t.type === 'addLiquidity' || t.type === 'removeLiquidity').length,
   };
 
   return (
@@ -232,22 +131,22 @@ const History = () => {
                 <p className="text-sm text-muted-foreground">Total Transactions</p>
               </CardContent>
             </Card>
-            <Card className="glass-card border-success/20">
+            <Card className="glass-card border-primary/20">
               <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-success">{stats.successTxs}</p>
-                <p className="text-sm text-muted-foreground">Successful</p>
+                <p className="text-2xl font-bold text-primary">{stats.swaps}</p>
+                <p className="text-sm text-muted-foreground">Swaps</p>
               </CardContent>
             </Card>
             <Card className="glass-card border-cyan-500/20">
               <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{stats.wraps}</p>
+                <p className="text-2xl font-bold text-cyan-400">{stats.wraps}</p>
                 <p className="text-sm text-muted-foreground">Wrap/Unwrap</p>
               </CardContent>
             </Card>
-            <Card className="glass-card border-primary/20">
+            <Card className="glass-card border-green-500/20">
               <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{stats.swaps}</p>
-                <p className="text-sm text-muted-foreground">Swaps</p>
+                <p className="text-2xl font-bold text-green-400">{stats.liquidity}</p>
+                <p className="text-sm text-muted-foreground">Liquidity</p>
               </CardContent>
             </Card>
           </div>
@@ -266,7 +165,7 @@ const History = () => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-secondary/30 rounded-lg p-1">
+                  <div className="flex bg-secondary/30 rounded-lg p-1 flex-wrap">
                     <button
                       onClick={() => setActiveFilter('all')}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -282,6 +181,14 @@ const History = () => {
                       }`}
                     >
                       Swaps
+                    </button>
+                    <button
+                      onClick={() => setActiveFilter('wrap')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        activeFilter === 'wrap' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Wrap
                     </button>
                     <button
                       onClick={() => setActiveFilter('liquidity')}
@@ -331,11 +238,13 @@ const History = () => {
               ) : (
                 <ScrollArea className="h-[500px]">
                   <div className="space-y-3">
-                    {filteredTransactions.map((tx) => {
+                    {filteredTransactions.map((tx, index) => {
                       const typeBadge = getTypeBadge(tx.type);
+                      const isLiquidityTx = tx.type === 'addLiquidity' || tx.type === 'removeLiquidity';
+                      
                       return (
                         <div
-                          key={tx.hash}
+                          key={`${tx.hash}-${tx.type}-${index}`}
                           className="flex items-center gap-4 p-4 rounded-xl bg-secondary/20 border border-border/30 hover:border-primary/30 transition-all group"
                         >
                           {/* Icon */}
@@ -349,21 +258,30 @@ const History = () => {
                               <Badge variant="secondary" className={typeBadge.className}>
                                 {typeBadge.label}
                               </Badge>
-                              <CheckCircle2 className="w-4 h-4 text-success" />
+                              <CheckCircle2 className="w-4 h-4 text-green-500" />
                             </div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="flex items-center gap-1">
-                                <img src={getTokenLogo(tx.tokenIn!)} alt="" className="w-4 h-4 rounded-full" />
-                                <span className="font-medium text-foreground">{parseFloat(tx.amountIn!).toFixed(4)}</span>
-                                <span className="text-muted-foreground">{tx.tokenIn}</span>
+                            
+                            {isLiquidityTx ? (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="text-muted-foreground">{tx.amountIn}</span>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                <span className="font-medium text-foreground">{tx.amountOut}</span>
                               </div>
-                              <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                              <div className="flex items-center gap-1">
-                                <img src={getTokenLogo(tx.tokenOut!)} alt="" className="w-4 h-4 rounded-full" />
-                                <span className="font-medium text-foreground">{parseFloat(tx.amountOut!).toFixed(4)}</span>
-                                <span className="text-muted-foreground">{tx.tokenOut}</span>
+                            ) : (
+                              <div className="flex items-center gap-2 text-sm">
+                                <div className="flex items-center gap-1">
+                                  <img src={getTokenLogo(tx.tokenIn!)} alt="" className="w-4 h-4 rounded-full" />
+                                  <span className="font-medium text-foreground">{parseFloat(tx.amountIn!).toFixed(4)}</span>
+                                  <span className="text-muted-foreground">{tx.tokenIn}</span>
+                                </div>
+                                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                <div className="flex items-center gap-1">
+                                  <img src={getTokenLogo(tx.tokenOut!)} alt="" className="w-4 h-4 rounded-full" />
+                                  <span className="font-medium text-foreground">{parseFloat(tx.amountOut!).toFixed(4)}</span>
+                                  <span className="text-muted-foreground">{tx.tokenOut}</span>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
 
                           {/* Time & Link */}
@@ -396,7 +314,7 @@ const History = () => {
             <h4 className="font-medium text-foreground mb-2">On-Chain Data</h4>
             <p className="text-sm text-muted-foreground">
               Transaction history is fetched directly from the Pharos Atlantic Testnet blockchain. 
-              Only your wallet's wrap/unwrap operations are currently tracked.
+              All swaps, wrap/unwrap, and liquidity operations are tracked in real-time.
             </p>
           </div>
         </div>

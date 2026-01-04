@@ -2,7 +2,7 @@ import Header from '@/components/Header';
 import WaveBackground from '@/components/WaveBackground';
 import { 
   Wallet, Droplets, Clock, ExternalLink, Copy, Check, 
-  TrendingUp, Coins, PieChart, ArrowUpRight, ArrowDownRight
+  TrendingUp, Coins, PieChart, ArrowRight, RefreshCw
 } from 'lucide-react';
 import { useAccount, useBalance } from 'wagmi';
 import { TOKEN_LIST, CONTRACTS, PHAROS_TESTNET } from '@/config/contracts';
@@ -11,12 +11,15 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { formatUnits } from 'viem';
 import { Helmet } from 'react-helmet-async';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useLiquidity } from '@/hooks/useLiquidity';
+import { useTransactionHistory } from '@/hooks/useTransactionHistory';
 import octoLogo from '@/assets/tokens/octo.png';
 import bnbLogo from '@/assets/tokens/bnb.png';
 import ethLogo from '@/assets/tokens/eth.png';
@@ -124,10 +127,73 @@ const LPPosition = ({ tokenA, tokenB }: { tokenA: typeof TOKEN_LIST[0], tokenB: 
   );
 };
 
+// Transaction Row Component for History Tab
+const TransactionRow = ({ tx }: { tx: { hash: string; type: string; tokenIn?: string; tokenOut?: string; amountIn?: string; amountOut?: string; timestamp: Date } }) => {
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const getTypeBadge = (type: string) => {
+    const config: Record<string, { label: string; className: string }> = {
+      swap: { label: 'Swap', className: 'bg-primary/20 text-primary' },
+      wrap: { label: 'Wrap', className: 'bg-cyan-500/20 text-cyan-400' },
+      unwrap: { label: 'Unwrap', className: 'bg-cyan-500/20 text-cyan-400' },
+      addLiquidity: { label: 'Add LP', className: 'bg-green-500/20 text-green-400' },
+      removeLiquidity: { label: 'Remove LP', className: 'bg-orange-500/20 text-orange-400' },
+    };
+    return config[type] || { label: type, className: 'bg-secondary' };
+  };
+
+  const typeBadge = getTypeBadge(tx.type);
+  const isLiquidityTx = tx.type === 'addLiquidity' || tx.type === 'removeLiquidity';
+
+  return (
+    <div className="flex items-center gap-3 p-3 hover:bg-secondary/30 rounded-xl transition-all">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <Badge variant="secondary" className={typeBadge.className}>
+            {typeBadge.label}
+          </Badge>
+        </div>
+        {isLiquidityTx ? (
+          <p className="text-sm text-muted-foreground truncate">{tx.amountOut}</p>
+        ) : (
+          <div className="flex items-center gap-1 text-sm">
+            <img src={getTokenLogo(tx.tokenIn!)} alt="" className="w-4 h-4 rounded-full" />
+            <span>{parseFloat(tx.amountIn!).toFixed(3)} {tx.tokenIn}</span>
+            <ArrowRight className="w-3 h-3" />
+            <img src={getTokenLogo(tx.tokenOut!)} alt="" className="w-4 h-4 rounded-full" />
+            <span>{parseFloat(tx.amountOut!).toFixed(3)} {tx.tokenOut}</span>
+          </div>
+        )}
+      </div>
+      <div className="text-right">
+        <p className="text-xs text-muted-foreground">{formatTimeAgo(tx.timestamp)}</p>
+        <a
+          href={`${PHAROS_TESTNET.blockExplorers.default.url}/tx/${tx.hash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-primary hover:underline"
+        >
+          View
+        </a>
+      </div>
+    </div>
+  );
+};
+
 const Portfolio = () => {
   const { address, isConnected } = useAccount();
   const [copied, setCopied] = useState(false);
   const { data: nativeBalance } = useBalance({ address });
+  const { transactions, isLoading: txLoading, refetch: refetchTxs } = useTransactionHistory();
 
   const copyAddress = () => {
     if (address) {
@@ -223,10 +289,10 @@ const Portfolio = () => {
                 <div className="p-2 rounded-lg bg-green-500/10">
                   <TrendingUp className="w-5 h-5 text-green-500" />
                 </div>
-                <span className="text-sm text-muted-foreground">Total Value</span>
+                <span className="text-sm text-muted-foreground">Transactions</span>
               </div>
-              <p className="text-3xl font-bold text-gradient">$0.00</p>
-              <p className="text-sm text-muted-foreground">Estimated USD value</p>
+              <p className="text-3xl font-bold text-gradient">{transactions.length}</p>
+              <p className="text-sm text-muted-foreground">Total on-chain</p>
             </Card>
 
             <Card className="glass-card p-6">
@@ -307,18 +373,56 @@ const Portfolio = () => {
             </TabsContent>
 
             <TabsContent value="history">
-              <Card className="glass-card p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">Transaction History</h3>
-                <p className="text-muted-foreground mb-6">View your transactions on the block explorer</p>
-                <a href={`${PHAROS_TESTNET.blockExplorers.default.url}/address/${address}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="lg">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View on Explorer
+              <Card className="glass-card">
+                <div className="p-4 border-b border-border/50 flex items-center justify-between">
+                  <h3 className="font-semibold">Recent Transactions</h3>
+                  <Button variant="ghost" size="sm" onClick={() => refetchTxs()} disabled={txLoading}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${txLoading ? 'animate-spin' : ''}`} />
+                    Refresh
                   </Button>
-                </a>
+                </div>
+                
+                {txLoading ? (
+                  <div className="p-4 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/20">
+                        <Skeleton className="w-8 h-8 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-40" />
+                        </div>
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                    ))}
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Clock className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold mb-2">No Transactions Yet</h3>
+                    <p className="text-muted-foreground mb-4">Your transaction history will appear here</p>
+                    <Link to="/">
+                      <Button variant="outline">Start Trading</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-2">
+                      {transactions.slice(0, 20).map((tx, index) => (
+                        <TransactionRow key={`${tx.hash}-${index}`} tx={tx} />
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+                
+                {transactions.length > 0 && (
+                  <div className="p-4 border-t border-border/50 text-center">
+                    <Link to="/history">
+                      <Button variant="outline" size="sm">
+                        View All Transactions
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               </Card>
             </TabsContent>
           </Tabs>
