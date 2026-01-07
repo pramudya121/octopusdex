@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
 import { useState } from 'react';
 import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X, BookOpen, ArrowDownUp, History } from 'lucide-react';
 import octopusLogo from '@/assets/octopus-logo.png';
 import WalletModal from './WalletModal';
+import PendingTransactions from './PendingTransactions';
+import { usePendingTransactions } from '@/hooks/usePendingTransactions';
 
 const navItems = [
   { path: '/', label: 'Swap', icon: ArrowLeftRight },
@@ -24,6 +26,7 @@ const Header = () => {
   const { disconnect } = useDisconnect();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { transactions, pendingCount, clearCompleted } = usePendingTransactions();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -64,8 +67,17 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Wallet Button */}
+          {/* Right Section */}
           <div className="flex items-center gap-3">
+            {/* Pending Transactions */}
+            {isConnected && (
+              <PendingTransactions 
+                transactions={transactions}
+                pendingCount={pendingCount}
+                onClearCompleted={clearCompleted}
+              />
+            )}
+
             {isConnected && address ? (
               <Button
                 variant="glass"

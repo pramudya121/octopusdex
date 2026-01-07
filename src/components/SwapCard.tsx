@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Token, TOKEN_LIST } from '@/config/contracts';
 import TokenSelector from '@/components/TokenSelector';
+import SwapConfirmModal from '@/components/SwapConfirmModal';
 import { useAccount } from 'wagmi';
 import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
@@ -40,6 +41,7 @@ const SwapCard = () => {
   const [isTokenInSelectorOpen, setIsTokenInSelectorOpen] = useState(false);
   const [isTokenOutSelectorOpen, setIsTokenOutSelectorOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const { swapWithPath, approve, useCheckAllowance, isSwapping } = useSwap();
   const { formatted: balanceIn } = useTokenBalance(tokenIn);
@@ -77,9 +79,18 @@ const SwapCard = () => {
     try {
       await swapWithPath(bestRoute.path, tokenIn, tokenOut, amountIn, bestRoute.amountOut);
       setAmountIn('');
+      setIsConfirmModalOpen(false);
       toast.success(`Swapped ${amountIn} ${tokenIn.symbol} for ${bestRoute.amountOutFormatted} ${tokenOut.symbol}`);
     } catch (error) {
       console.error('Swap failed:', error);
+    }
+  };
+
+  const handleSwapClick = () => {
+    if (needsApproval) {
+      handleApprove();
+    } else {
+      setIsConfirmModalOpen(true);
     }
   };
 
@@ -316,7 +327,7 @@ const SwapCard = () => {
         size="lg"
         className="w-full mt-6"
         disabled={isButtonDisabled()}
-        onClick={needsApproval ? handleApprove : handleSwap}
+        onClick={handleSwapClick}
       >
         {isSwapping && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
         {getButtonText()}
@@ -335,6 +346,21 @@ const SwapCard = () => {
         onSelect={setTokenOut}
         selectedToken={tokenOut}
         disabledToken={tokenIn}
+      />
+
+      {/* Confirmation Modal */}
+      <SwapConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={handleSwap}
+        tokenIn={tokenIn}
+        tokenOut={tokenOut}
+        amountIn={amountIn}
+        route={bestRoute}
+        slippage={slippage}
+        priceImpact={priceImpact}
+        priceImpactSeverity={severity}
+        isLoading={isSwapping}
       />
     </Card>
   );
