@@ -4,9 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TOKEN_LIST, Token } from '@/config/contracts';
-import { Search, Plus, Trash2, Star } from 'lucide-react';
+import { Search, Plus, Trash2, Star, Clock } from 'lucide-react';
 import { useCustomTokens, CustomToken } from '@/hooks/useCustomTokens';
 import { useFavoriteTokens } from '@/hooks/useFavoriteTokens';
+import { useRecentTokens } from '@/hooks/useRecentTokens';
 import TokenImportModal from '@/components/TokenImportModal';
 import octoLogo from '@/assets/tokens/octo.png';
 import bnbLogo from '@/assets/tokens/bnb.png';
@@ -46,22 +47,40 @@ const TokenSelector = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { customTokens, addToken, removeToken, isCustomToken } = useCustomTokens();
   const { toggleFavorite, isFavorite } = useFavoriteTokens();
+  const { recentAddresses, addRecent, isRecent } = useRecentTokens();
 
   // Combine default and custom tokens
   const allTokens = useMemo(() => {
     return [...TOKEN_LIST, ...customTokens];
   }, [customTokens]);
 
-  // Sort tokens: favorites first, then by symbol
+  // Sort tokens: favorites first, then recent, then by symbol
   const sortedTokens = useMemo(() => {
     return [...allTokens].sort((a, b) => {
       const aFav = isFavorite(a.address);
       const bFav = isFavorite(b.address);
+      const aRecent = isRecent(a.address);
+      const bRecent = isRecent(b.address);
+      
+      // Favorites always first
       if (aFav && !bFav) return -1;
       if (!aFav && bFav) return 1;
+      
+      // Then recent tokens
+      if (aRecent && !bRecent) return -1;
+      if (!aRecent && bRecent) return 1;
+      
       return a.symbol.localeCompare(b.symbol);
     });
-  }, [allTokens, isFavorite]);
+  }, [allTokens, isFavorite, isRecent]);
+
+  // Get recent tokens for quick access
+  const recentTokens = useMemo(() => {
+    return recentAddresses
+      .map(addr => allTokens.find(t => t.address.toLowerCase() === addr.toLowerCase()))
+      .filter((t): t is Token => t !== undefined)
+      .slice(0, 4);
+  }, [recentAddresses, allTokens]);
 
   const filteredTokens = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -79,6 +98,7 @@ const TokenSelector = ({
   }, [allTokens]);
 
   const handleSelect = (token: Token) => {
+    addRecent(token.address);
     onSelect(token);
     onClose();
     setSearchQuery('');
@@ -120,8 +140,35 @@ const TokenSelector = ({
             />
           </div>
 
+          {/* Recent Tokens - Quick Access */}
+          {!searchQuery && recentTokens.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Recent</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recentTokens.map((token) => (
+                  <button
+                    key={`recent-${token.address}`}
+                    onClick={() => handleSelect(token)}
+                    disabled={disabledToken?.address.toLowerCase() === token.address.toLowerCase()}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-all text-sm disabled:opacity-50"
+                  >
+                    <img
+                      src={getTokenLogo(token.symbol)}
+                      alt={token.symbol}
+                      className="w-5 h-5 rounded-full"
+                    />
+                    {token.symbol}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Token List */}
-          <div className="max-h-80 overflow-y-auto space-y-1 mt-4">
+          <div className="max-h-80 overflow-y-auto space-y-1">
             {filteredTokens.map((token) => {
               const isSelected =
                 selectedToken?.address.toLowerCase() === token.address.toLowerCase();
