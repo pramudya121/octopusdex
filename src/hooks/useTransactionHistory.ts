@@ -231,6 +231,37 @@ export const useTransactionHistory = () => {
             }
           }
 
+          // Fetch mint events (add liquidity) where user is sender
+          const mintLogs = await client.getLogs({
+            address: pair.address,
+            event: MINT_EVENT,
+            args: { sender: address },
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []);
+
+          for (const log of mintLogs) {
+            try {
+              const block = await client.getBlock({ blockNumber: log.blockNumber });
+              const { amount0, amount1 } = log.args;
+
+              txs.push({
+                hash: log.transactionHash,
+                type: 'addLiquidity',
+                tokenIn: `${token0Symbol}+${token1Symbol}`,
+                tokenOut: 'LP',
+                amountIn: `${parseFloat(formatUnits(amount0 || BigInt(0), token0Decimals)).toFixed(4)} + ${parseFloat(formatUnits(amount1 || BigInt(0), token1Decimals)).toFixed(4)}`,
+                amountOut: 'LP Tokens',
+                status: 'success',
+                timestamp: new Date(Number(block.timestamp) * 1000),
+                blockNumber: log.blockNumber,
+                pairAddress: pair.address,
+              });
+            } catch (e) {
+              // Skip failed block fetch
+            }
+          }
+
           // Fetch burn events (remove liquidity) where user receives tokens
           const burnLogs = await client.getLogs({
             address: pair.address,
