@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TOKEN_LIST, Token } from '@/config/contracts';
-import { Search, Plus, X, Trash2 } from 'lucide-react';
+import { Search, Plus, Trash2, Star } from 'lucide-react';
 import { useCustomTokens, CustomToken } from '@/hooks/useCustomTokens';
+import { useFavoriteTokens } from '@/hooks/useFavoriteTokens';
 import TokenImportModal from '@/components/TokenImportModal';
 import octoLogo from '@/assets/tokens/octo.png';
 import bnbLogo from '@/assets/tokens/bnb.png';
@@ -44,22 +45,34 @@ const TokenSelector = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const { customTokens, addToken, removeToken, isCustomToken } = useCustomTokens();
+  const { toggleFavorite, isFavorite } = useFavoriteTokens();
 
   // Combine default and custom tokens
   const allTokens = useMemo(() => {
     return [...TOKEN_LIST, ...customTokens];
   }, [customTokens]);
 
+  // Sort tokens: favorites first, then by symbol
+  const sortedTokens = useMemo(() => {
+    return [...allTokens].sort((a, b) => {
+      const aFav = isFavorite(a.address);
+      const bFav = isFavorite(b.address);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return a.symbol.localeCompare(b.symbol);
+    });
+  }, [allTokens, isFavorite]);
+
   const filteredTokens = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    if (!query) return allTokens;
-    return allTokens.filter(
+    if (!query) return sortedTokens;
+    return sortedTokens.filter(
       (token) =>
         token.symbol.toLowerCase().includes(query) ||
         token.name.toLowerCase().includes(query) ||
         token.address.toLowerCase().includes(query)
     );
-  }, [searchQuery, allTokens]);
+  }, [searchQuery, sortedTokens]);
 
   const existingAddresses = useMemo(() => {
     return allTokens.map(t => t.address.toLowerCase());
@@ -80,6 +93,11 @@ const TokenSelector = ({
     e.stopPropagation();
     removeToken(address);
     toast.success(`${symbol} removed from list`);
+  };
+
+  const handleToggleFavorite = (e: React.MouseEvent, address: string) => {
+    e.stopPropagation();
+    toggleFavorite(address);
   };
 
   return (
@@ -110,6 +128,7 @@ const TokenSelector = ({
               const isDisabled =
                 disabledToken?.address.toLowerCase() === token.address.toLowerCase();
               const isCustom = isCustomToken(token.address);
+              const isFav = isFavorite(token.address);
 
               return (
                 <button
@@ -124,6 +143,18 @@ const TokenSelector = ({
                       : 'hover:bg-secondary/50'
                   }`}
                 >
+                  {/* Favorite Star */}
+                  <button
+                    onClick={(e) => handleToggleFavorite(e, token.address)}
+                    className={`p-1 rounded-lg transition-all ${
+                      isFav 
+                        ? 'text-warning' 
+                        : 'text-muted-foreground/30 hover:text-warning/50'
+                    }`}
+                  >
+                    <Star className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+                  </button>
+
                   <img
                     src={getTokenLogo(token.symbol)}
                     alt={token.symbol}
