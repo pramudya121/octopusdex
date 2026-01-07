@@ -7,6 +7,7 @@ import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, Menu, X, BookO
 import octopusLogo from '@/assets/octopus-logo.png';
 import WalletModal from './WalletModal';
 import PendingTransactions from './PendingTransactions';
+import ThemeToggle from './ThemeToggle';
 import { usePendingTransactions } from '@/hooks/usePendingTransactions';
 
 const navItems = [
@@ -68,7 +69,10 @@ const Header = () => {
           </nav>
 
           {/* Right Section */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            
             {/* Pending Transactions */}
             {isConnected && (
               <PendingTransactions 

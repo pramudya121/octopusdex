@@ -70,10 +70,58 @@
     --sidebar-ring: 187 100% 42%;
   }
 
-  /* Dark mode is the default and only mode for this DEX */
-  .dark {
-    --background: 222 47% 5%;
-    --foreground: 210 40% 98%;
+  /* Light mode */
+  .light {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 187 100% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 187 100% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+
+    --border: 214 32% 85%;
+    --input: 214 32% 91%;
+    --ring: 187 100% 35%;
+
+    --ocean-deep: 210 40% 96%;
+    --ocean-surface: 210 40% 92%;
+    --ocean-light: 214 32% 85%;
+    --cyan-glow: 187 100% 35%;
+    --cyan-bright: 187 100% 42%;
+    --cyan-dim: 187 30% 70%;
+    --purple-accent: 270 80% 60%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 187 100% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 85%;
+    --sidebar-ring: 187 100% 35%;
   }
 }
 
