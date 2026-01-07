@@ -12,6 +12,7 @@ import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useBestRoute } from '@/hooks/useMultiHopSwap';
 import { usePriceImpact } from '@/hooks/usePriceImpact';
+import { useAmountUSD } from '@/hooks/useTokenPrice';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import octoLogo from '@/assets/tokens/octo.png';
@@ -53,6 +54,11 @@ const SwapCard = () => {
   
   // Price impact calculation
   const { priceImpact, severity, warning: priceImpactWarning } = usePriceImpact(amountInParsed, tokenIn, tokenOut);
+  
+  // USD value estimation
+  const { formattedValue: amountInUSD } = useAmountUSD(tokenIn, amountIn);
+  const amountOutValue = bestRoute?.amountOutFormatted || '0';
+  const { formattedValue: amountOutUSD } = useAmountUSD(tokenOut, amountOutValue);
   
   const { allowance, refetch: refetchAllowance } = useCheckAllowance(tokenIn);
   const needsApproval = !tokenIn.isNative && amountInParsed > BigInt(0) && allowance < amountInParsed;
@@ -197,9 +203,12 @@ const SwapCard = () => {
             <ChevronDown className="w-4 h-4" />
           </Button>
         </div>
+        {amountIn && amountInUSD && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            ≈ {amountInUSD}
+          </div>
+        )}
       </div>
-
-      {/* Switch Button */}
       <div className="relative h-2 my-2">
         <button onClick={switchTokens} className="swap-arrow top-1/2">
           <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
@@ -232,9 +241,12 @@ const SwapCard = () => {
             <ChevronDown className="w-4 h-4" />
           </Button>
         </div>
+        {amountIn && amountOutUSD && parseFloat(amountOutValue) > 0 && (
+          <div className="mt-2 text-sm text-muted-foreground">
+            ≈ {amountOutUSD}
+          </div>
+        )}
       </div>
-
-      {/* Price Impact Warning */}
       {amountIn && priceImpact >= 1 && (
         <Alert 
           className={`mt-4 ${
