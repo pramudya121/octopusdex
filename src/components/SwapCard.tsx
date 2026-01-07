@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Token, TOKEN_LIST } from '@/config/contracts';
 import TokenSelector from '@/components/TokenSelector';
 import { useAccount } from 'wagmi';
 import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
 import { useBestRoute } from '@/hooks/useMultiHopSwap';
+import { usePriceImpact } from '@/hooks/usePriceImpact';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import octoLogo from '@/assets/tokens/octo.png';
@@ -46,6 +48,9 @@ const SwapCard = () => {
   // Multi-hop routing
   const amountInParsed = amountIn ? parseUnits(amountIn, tokenIn.decimals) : BigInt(0);
   const { bestRoute, allRoutes, isLoading: isQuoteLoading } = useBestRoute(amountInParsed, tokenIn, tokenOut);
+  
+  // Price impact calculation
+  const { priceImpact, severity, warning: priceImpactWarning } = usePriceImpact(amountInParsed, tokenIn, tokenOut);
   
   const { allowance, refetch: refetchAllowance } = useCheckAllowance(tokenIn);
   const needsApproval = !tokenIn.isNative && amountInParsed > BigInt(0) && allowance < amountInParsed;
@@ -218,6 +223,41 @@ const SwapCard = () => {
         </div>
       </div>
 
+      {/* Price Impact Warning */}
+      {amountIn && priceImpact >= 1 && (
+        <Alert 
+          className={`mt-4 ${
+            severity === 'critical' 
+              ? 'border-destructive/50 bg-destructive/10' 
+              : severity === 'high' 
+              ? 'border-orange-500/50 bg-orange-500/10' 
+              : severity === 'medium'
+              ? 'border-warning/50 bg-warning/10'
+              : 'border-primary/50 bg-primary/10'
+          }`}
+        >
+          {severity === 'critical' || severity === 'high' ? (
+            <AlertTriangle className={`w-4 h-4 ${severity === 'critical' ? 'text-destructive' : 'text-orange-500'}`} />
+          ) : (
+            <AlertCircle className={`w-4 h-4 ${severity === 'medium' ? 'text-warning' : 'text-primary'}`} />
+          )}
+          <AlertDescription className={`text-sm ${
+            severity === 'critical' 
+              ? 'text-destructive' 
+              : severity === 'high' 
+              ? 'text-orange-500' 
+              : severity === 'medium'
+              ? 'text-warning'
+              : 'text-primary'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span>{priceImpactWarning}</span>
+              <span className="font-bold ml-2">-{priceImpact.toFixed(2)}%</span>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Swap Details */}
       {amountIn && bestRoute && parseFloat(bestRoute.amountOutFormatted) > 0 && (
         <div className="mt-4 p-3 bg-secondary/30 rounded-xl text-sm space-y-2">
@@ -240,6 +280,18 @@ const SwapCard = () => {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Rate</span>
             <span>1 {tokenIn.symbol} = {(parseFloat(bestRoute.amountOutFormatted) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}</span>
+          </div>
+          {/* Price Impact in details */}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Price Impact</span>
+            <span className={
+              severity === 'critical' ? 'text-destructive font-bold' :
+              severity === 'high' ? 'text-orange-500 font-semibold' :
+              severity === 'medium' ? 'text-warning' :
+              'text-success'
+            }>
+              {priceImpact < 0.01 ? '<0.01%' : `-${priceImpact.toFixed(2)}%`}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Min. Received</span>
