@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Token, TOKEN_LIST } from '@/config/contracts';
 import TokenSelector from '@/components/TokenSelector';
-import SwapConfirmModal from '@/components/SwapConfirmModal';
+import SwapBot from '@/components/SwapBot';
 import { useAccount } from 'wagmi';
 import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
@@ -42,7 +42,8 @@ const SwapCard = () => {
   const [isTokenInSelectorOpen, setIsTokenInSelectorOpen] = useState(false);
   const [isTokenOutSelectorOpen, setIsTokenOutSelectorOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [botMinAmount, setBotMinAmount] = useState(0.001);
+  const [botMaxAmount, setBotMaxAmount] = useState(0.01);
 
   const { swapWithPath, approve, useCheckAllowance, isSwapping } = useSwap();
   const { formatted: balanceIn } = useTokenBalance(tokenIn);
@@ -84,8 +85,6 @@ const SwapCard = () => {
     
     try {
       await swapWithPath(bestRoute.path, tokenIn, tokenOut, amountIn, bestRoute.amountOut);
-      setAmountIn('');
-      setIsConfirmModalOpen(false);
       toast.success(`Swapped ${amountIn} ${tokenIn.symbol} for ${bestRoute.amountOutFormatted} ${tokenOut.symbol}`);
     } catch (error) {
       console.error('Swap failed:', error);
@@ -96,9 +95,16 @@ const SwapCard = () => {
     if (needsApproval) {
       handleApprove();
     } else {
-      setIsConfirmModalOpen(true);
+      handleSwap();
     }
   };
+
+  const randomizeAmount = useCallback(() => {
+    const min = botMinAmount;
+    const max = botMaxAmount;
+    const random = min + Math.random() * (max - min);
+    setAmountIn(random.toFixed(6));
+  }, [botMinAmount, botMaxAmount]);
 
   const setMaxAmount = () => {
     // For native token, leave some for gas
@@ -115,7 +121,6 @@ const SwapCard = () => {
     if (!amountIn || parseFloat(amountIn) === 0) return 'Enter Amount';
     if (parseFloat(amountIn) > parseFloat(balanceIn)) return 'Insufficient Balance';
     if (needsApproval) return `Approve ${tokenIn.symbol}`;
-    if (isSwapping) return 'Swapping...';
     return 'Swap';
   };
 
@@ -123,11 +128,11 @@ const SwapCard = () => {
     if (!isConnected) return true;
     if (!amountIn || parseFloat(amountIn) === 0) return true;
     if (parseFloat(amountIn) > parseFloat(balanceIn)) return true;
-    if (isSwapping) return true;
     return false;
   };
 
   return (
+    <>
     <Card className="glass-card p-6 w-full max-w-md mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">Swap</h2>
@@ -284,7 +289,6 @@ const SwapCard = () => {
       {/* Swap Details */}
       {amountIn && bestRoute && parseFloat(bestRoute.amountOutFormatted) > 0 && (
         <div className="mt-4 p-3 bg-secondary/30 rounded-xl text-sm space-y-2">
-          {/* Route Display */}
           {bestRoute.isMultiHop && (
             <div className="flex items-center justify-between text-primary">
               <span className="flex items-center gap-1">
@@ -304,7 +308,6 @@ const SwapCard = () => {
             <span className="text-muted-foreground">Rate</span>
             <span>1 {tokenIn.symbol} = {(parseFloat(bestRoute.amountOutFormatted) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}</span>
           </div>
-          {/* Price Impact in details */}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Price Impact</span>
             <span className={
@@ -341,7 +344,6 @@ const SwapCard = () => {
         disabled={isButtonDisabled()}
         onClick={handleSwapClick}
       >
-        {isSwapping && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
         {getButtonText()}
       </Button>
 
@@ -359,22 +361,15 @@ const SwapCard = () => {
         selectedToken={tokenOut}
         disabledToken={tokenIn}
       />
-
-      {/* Confirmation Modal */}
-      <SwapConfirmModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={handleSwap}
-        tokenIn={tokenIn}
-        tokenOut={tokenOut}
-        amountIn={amountIn}
-        route={bestRoute}
-        slippage={slippage}
-        priceImpact={priceImpact}
-        priceImpactSeverity={severity}
-        isLoading={isSwapping}
-      />
     </Card>
+
+    {/* Bot Swap */}
+    <SwapBot
+      onRandomize={randomizeAmount}
+      onAutoSwap={handleSwapClick}
+      isConnected={isConnected}
+    />
+    </>
   );
 };
 
