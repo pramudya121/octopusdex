@@ -85,8 +85,6 @@ const SwapCard = () => {
     
     try {
       await swapWithPath(bestRoute.path, tokenIn, tokenOut, amountIn, bestRoute.amountOut);
-      setAmountIn('');
-      setIsConfirmModalOpen(false);
       toast.success(`Swapped ${amountIn} ${tokenIn.symbol} for ${bestRoute.amountOutFormatted} ${tokenOut.symbol}`);
     } catch (error) {
       console.error('Swap failed:', error);
@@ -97,9 +95,16 @@ const SwapCard = () => {
     if (needsApproval) {
       handleApprove();
     } else {
-      setIsConfirmModalOpen(true);
+      handleSwap();
     }
   };
+
+  const randomizeAmount = useCallback(() => {
+    const min = botMinAmount;
+    const max = botMaxAmount;
+    const random = min + Math.random() * (max - min);
+    setAmountIn(random.toFixed(6));
+  }, [botMinAmount, botMaxAmount]);
 
   const setMaxAmount = () => {
     // For native token, leave some for gas
