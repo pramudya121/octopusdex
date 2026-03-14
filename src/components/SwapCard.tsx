@@ -132,6 +132,7 @@ const SwapCard = () => {
   };
 
   return (
+    <>
     <Card className="glass-card p-6 w-full max-w-md mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">Swap</h2>
@@ -288,7 +289,6 @@ const SwapCard = () => {
       {/* Swap Details */}
       {amountIn && bestRoute && parseFloat(bestRoute.amountOutFormatted) > 0 && (
         <div className="mt-4 p-3 bg-secondary/30 rounded-xl text-sm space-y-2">
-          {/* Route Display */}
           {bestRoute.isMultiHop && (
             <div className="flex items-center justify-between text-primary">
               <span className="flex items-center gap-1">
@@ -308,7 +308,6 @@ const SwapCard = () => {
             <span className="text-muted-foreground">Rate</span>
             <span>1 {tokenIn.symbol} = {(parseFloat(bestRoute.amountOutFormatted) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}</span>
           </div>
-          {/* Price Impact in details */}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Price Impact</span>
             <span className={
@@ -347,7 +346,6 @@ const SwapCard = () => {
       >
         {getButtonText()}
       </Button>
-      </Button>
 
       <TokenSelector
         isOpen={isTokenInSelectorOpen}
@@ -363,14 +361,15 @@ const SwapCard = () => {
         selectedToken={tokenOut}
         disabledToken={tokenIn}
       />
-
-      {/* Bot Swap */}
-      <SwapBot
-        onRandomize={randomizeAmount}
-        onAutoSwap={handleSwapClick}
-        isConnected={isConnected}
-      />
     </Card>
+
+    {/* Bot Swap */}
+    <SwapBot
+      onRandomize={randomizeAmount}
+      onAutoSwap={handleSwapClick}
+      isConnected={isConnected}
+    />
+    </>
   );
 };
 
