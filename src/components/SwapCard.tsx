@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowDownUp, Settings, ChevronDown, Loader2, ArrowRight, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Token, TOKEN_LIST } from '@/config/contracts';
 import TokenSelector from '@/components/TokenSelector';
-import SwapConfirmModal from '@/components/SwapConfirmModal';
+import SwapBot from '@/components/SwapBot';
 import { useAccount } from 'wagmi';
 import { useSwap } from '@/hooks/useSwap';
 import { useTokenBalance } from '@/hooks/useTokenBalance';
