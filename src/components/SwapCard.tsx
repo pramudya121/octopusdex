@@ -121,7 +121,6 @@ const SwapCard = () => {
     if (!amountIn || parseFloat(amountIn) === 0) return 'Enter Amount';
     if (parseFloat(amountIn) > parseFloat(balanceIn)) return 'Insufficient Balance';
     if (needsApproval) return `Approve ${tokenIn.symbol}`;
-    if (isSwapping) return 'Swapping...';
     return 'Swap';
   };
 
@@ -129,7 +128,6 @@ const SwapCard = () => {
     if (!isConnected) return true;
     if (!amountIn || parseFloat(amountIn) === 0) return true;
     if (parseFloat(amountIn) > parseFloat(balanceIn)) return true;
-    if (isSwapping) return true;
     return false;
   };
 
