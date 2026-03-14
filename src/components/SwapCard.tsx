@@ -345,8 +345,8 @@ const SwapCard = () => {
         disabled={isButtonDisabled()}
         onClick={handleSwapClick}
       >
-        {isSwapping && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
         {getButtonText()}
+      </Button>
       </Button>
 
       <TokenSelector
