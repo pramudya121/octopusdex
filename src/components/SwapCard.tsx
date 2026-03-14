@@ -364,19 +364,11 @@ const SwapCard = () => {
         disabledToken={tokenIn}
       />
 
-      {/* Confirmation Modal */}
-      <SwapConfirmModal
-        isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={handleSwap}
-        tokenIn={tokenIn}
-        tokenOut={tokenOut}
-        amountIn={amountIn}
-        route={bestRoute}
-        slippage={slippage}
-        priceImpact={priceImpact}
-        priceImpactSeverity={severity}
-        isLoading={isSwapping}
+      {/* Bot Swap */}
+      <SwapBot
+        onRandomize={randomizeAmount}
+        onAutoSwap={handleSwapClick}
+        isConnected={isConnected}
       />
     </Card>
   );
