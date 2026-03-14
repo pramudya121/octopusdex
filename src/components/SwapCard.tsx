@@ -42,7 +42,8 @@ const SwapCard = () => {
   const [isTokenInSelectorOpen, setIsTokenInSelectorOpen] = useState(false);
   const [isTokenOutSelectorOpen, setIsTokenOutSelectorOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [botMinAmount, setBotMinAmount] = useState(0.001);
+  const [botMaxAmount, setBotMaxAmount] = useState(0.01);
 
   const { swapWithPath, approve, useCheckAllowance, isSwapping } = useSwap();
   const { formatted: balanceIn } = useTokenBalance(tokenIn);
