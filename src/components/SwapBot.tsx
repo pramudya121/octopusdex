@@ -17,7 +17,7 @@ const SwapBot = ({ onRandomize, onAutoSwap, isConnected }: SwapBotProps) => {
   const [interval, setInterval_] = useState(3);
   const [minAmount, setMinAmount] = useState('0.001');
   const [maxAmount, setMaxAmount] = useState('0.01');
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const doSwap = useCallback(() => {
     onRandomize();
