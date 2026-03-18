@@ -13,7 +13,7 @@ interface SwapBotProps {
   onMaxAmountChange: (val: number) => void;
 }
 
-const SwapBot = ({ onRandomize, onAutoSwap, isConnected, onMinAmountChange, onMaxAmountChange }: SwapBotProps) => {
+const SwapBot = ({ onRandomize, onAutoSwap, isConnected, onMinAmountChange = () => {}, onMaxAmountChange = () => {} }: SwapBotProps) => {
   const [botEnabled, setBotEnabled] = useState(false);
   const [autoClick, setAutoClick] = useState(false);
   const [interval, setInterval_] = useState(3);
