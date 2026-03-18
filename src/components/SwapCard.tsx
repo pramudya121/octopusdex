@@ -44,6 +44,8 @@ const SwapCard = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [botMinAmount, setBotMinAmount] = useState(0.001);
   const [botMaxAmount, setBotMaxAmount] = useState(0.01);
+  const handleBotMinChange = useCallback((val: number) => setBotMinAmount(val), []);
+  const handleBotMaxChange = useCallback((val: number) => setBotMaxAmount(val), []);
 
   const { swapWithPath, approve, useCheckAllowance, isSwapping } = useSwap();
   const { formatted: balanceIn } = useTokenBalance(tokenIn);
@@ -368,6 +370,8 @@ const SwapCard = () => {
       onRandomize={randomizeAmount}
       onAutoSwap={handleSwapClick}
       isConnected={isConnected}
+      onMinAmountChange={handleBotMinChange}
+      onMaxAmountChange={handleBotMaxChange}
     />
     </>
   );
