@@ -370,6 +370,8 @@ const SwapCard = () => {
       onRandomize={randomizeAmount}
       onAutoSwap={handleSwapClick}
       isConnected={isConnected}
+      onMinAmountChange={handleBotMinChange}
+      onMaxAmountChange={handleBotMaxChange}
     />
     </>
   );
